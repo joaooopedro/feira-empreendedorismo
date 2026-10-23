@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { IconeFechar } from "./IconeFechar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { addDoc, collection, doc, getDoc, increment, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
+import { novoSabor, registrarVenda, sair, salvarFicha } from "@/app/acoes";
 import { db } from "@/lib/firebase";
 import { useColecao } from "@/lib/useColecao";
 import { numero, planejar, reais, restam } from "@/lib/calculo";
@@ -40,17 +41,6 @@ function Numero({ valor, rotulo }: { valor: string; rotulo: string }) {
 function BancaAoVivo() {
   const { itens, erro } = useColecao<Sabor>("mokiSabores");
   const sabores = useMemo(() => [...itens].sort((a, b) => a.nome.localeCompare(b.nome)), [itens]);
-  const ultimoCardapio = useRef("");
-
-  // Mantém o cardápio da MOKI no guia da feira igual ao estoque real.
-  useEffect(() => {
-    if (!sabores.length) return;
-    const produtos = sabores.map((s) => ({ nome: s.nome, preco: s.preco, esgotado: restam(s) === 0 }));
-    const json = JSON.stringify(produtos);
-    if (json === ultimoCardapio.current) return;
-    ultimoCardapio.current = json;
-    updateDoc(doc(db, "bancas", "moki"), { produtos }).catch(() => {});
-  }, [sabores]);
 
   const vendidos = sabores.reduce((t, s) => t + s.vendidos, 0);
   const faturado = sabores.reduce((t, s) => t + s.vendidos * s.preco, 0);
@@ -61,13 +51,9 @@ function BancaAoVivo() {
 
   async function adicionar(e: React.FormEvent) {
     e.preventDefault();
-    const preco = numero(novo.preco);
-    const produzidos = Math.round(numero(novo.produzidos));
-    if (!novo.nome.trim() || preco <= 0 || produzidos <= 0)
-      return setAviso({ ok: false, texto: "Preencha sabor, preço e quantidade com números maiores que zero." });
-    await addDoc(collection(db, "mokiSabores"), { nome: novo.nome.trim(), preco, produzidos, vendidos: 0 });
-    setNovo({ nome: "", preco: "", produzidos: "" });
-    setAviso({ ok: true, texto: "Sabor adicionado." });
+    const resposta = await novoSabor(novo.nome, numero(novo.preco), Math.round(numero(novo.produzidos)));
+    if (resposta.ok) setNovo({ nome: "", preco: "", produzidos: "" });
+    setAviso(resposta);
   }
 
   return (
@@ -109,14 +95,14 @@ function BancaAoVivo() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   disabled={r === 0}
-                  onClick={() => updateDoc(doc(db, "mokiSabores", s.id), { vendidos: increment(1) })}
+                  onClick={() => registrarVenda(s.id, 1)}
                   className="min-h-14 flex-[2] rounded-campo bg-tinta text-lg font-bold text-fundo disabled:opacity-40"
                 >
                   Vendi 1
                 </motion.button>
                 <button
                   disabled={s.vendidos === 0}
-                  onClick={() => updateDoc(doc(db, "mokiSabores", s.id), { vendidos: increment(-1) })}
+                  onClick={() => registrarVenda(s.id, -1)}
                   className="min-h-14 flex-1 rounded-campo bg-superficie-alta font-bold disabled:opacity-40"
                   aria-label={`Desfazer última venda de ${s.nome}`}
                 >
@@ -175,8 +161,7 @@ function Calculadora() {
 
   async function salvar() {
     try {
-      await setDoc(ref, { ...ficha, ingredientes: ficha!.ingredientes.filter((i) => i.nome.trim()) });
-      setAviso({ ok: true, texto: "Ficha salva para todo o grupo." });
+      setAviso(await salvarFicha({ ...ficha!, ingredientes: ficha!.ingredientes.filter((i) => i.nome.trim()) }));
     } catch {
       setAviso({ ok: false, texto: "Não foi possível salvar." });
     }
@@ -302,7 +287,10 @@ export default function PainelMoki() {
       <header className="pt-10">
         <Link href="/" className="text-tinta-fraca hover:text-tinta">← Guia da feira</Link>
         <h1 className="mt-4 text-[clamp(2.1rem,6vw,3.6rem)] font-bold tracking-[-0.02em]">Painel MOKI Cookies</h1>
-        <p className="mt-1 text-tinta-fraca">Uso interno da banca.</p>
+        <p className="mt-1 text-tinta-fraca">
+          Uso interno da banca.{" "}
+          <button onClick={() => sair()} className="underline underline-offset-4 hover:text-tinta">Sair</button>
+        </p>
       </header>
       <nav className="sticky top-0 z-10 -mx-4 mt-6 flex gap-2 overflow-x-auto bg-fundo px-4 py-3" aria-label="Partes do painel">
         <a href="#banca" className="flex-none rounded-full bg-superficie px-4 py-2 font-bold">Banca ao vivo</a>

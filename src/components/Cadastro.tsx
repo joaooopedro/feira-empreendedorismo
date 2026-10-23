@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { IconeFechar } from "./IconeFechar";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { sair, salvarCardapio } from "@/app/acoes";
 import { useColecao } from "@/lib/useColecao";
 import { ordenar } from "@/lib/bancas";
 import { numero } from "@/lib/calculo";
@@ -14,10 +13,11 @@ import type { Banca } from "@/lib/tipos";
 type Linha = { nome: string; preco: string; esgotado: boolean };
 const campo = "min-h-12 w-full rounded-campo border border-linha bg-fundo px-3";
 
-export default function Cadastro({ inicial }: { inicial: Banca[] }) {
+export default function Cadastro({ inicial, banca }: { inicial: Banca[]; banca: string }) {
   const { itens } = useColecao<Banca>("bancas", inicial);
   const bancas = useMemo(() => ordenar(itens), [itens]);
   const [id, setId] = useState("");
+  const minha = bancas.find((b) => b.id === banca);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [pagamento, setPagamento] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -33,14 +33,18 @@ export default function Cadastro({ inicial }: { inicial: Banca[] }) {
     setInstagram(b.instagram);
   }
 
+  // Abre já com o cardápio da banca logada.
+  useEffect(() => {
+    if (!id && minha) escolher(minha.id);
+  }, [minha]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     const produtos = linhas.filter((l) => l.nome.trim()).map((l) => ({ nome: l.nome.trim(), preco: numero(l.preco), esgotado: l.esgotado }));
     if (linhas.some((l) => l.nome.trim() && !(numero(l.preco) > 0)))
       return setAviso({ ok: false, texto: "Confira os preços: use números, como 6,50." });
     try {
-      await updateDoc(doc(db, "bancas", id), { produtos, pagamento: pagamento.trim(), instagram: instagram.trim() });
-      setAviso({ ok: true, texto: "Cardápio salvo. Já aparece no guia." });
+      setAviso(await salvarCardapio(produtos, pagamento, instagram));
     } catch {
       setAviso({ ok: false, texto: "Não foi possível salvar. Tente de novo." });
     }
@@ -55,16 +59,15 @@ export default function Cadastro({ inicial }: { inicial: Banca[] }) {
       <p className="mt-1 text-tinta-fraca">Para os grupos de Gestão. O que você salvar aparece na hora no guia e no mapa.</p>
 
       <form onSubmit={salvar} className="mt-8 rounded-cartao bg-superficie p-5">
-        <label htmlFor="banca" className="mb-1 block font-bold">Sua banca</label>
-        <select id="banca" className={campo} value={id} onChange={(e) => escolher(e.target.value)}>
-          <option value="">Escolha</option>
-          {bancas.map((b) => <option key={b.id} value={b.id}>{b.numero}. {b.nome}</option>)}
-        </select>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-xl font-bold">{minha ? `${minha.numero}. ${minha.nome}` : "Carregando..."}</p>
+          <button type="button" onClick={() => sair()} className="text-sm text-tinta-fraca underline underline-offset-4 hover:text-tinta">Sair</button>
+        </div>
 
         <AnimatePresence>
           {id && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <h2 className="mt-8 text-xl font-bold">Produtos</h2>
+              <h2 className="mt-6 text-xl font-bold">Produtos</h2>
               <ul className="mt-3 flex flex-col gap-3">
                 {linhas.map((l, i) => (
                   <li key={i} className="grid grid-cols-[1fr_96px_auto_auto] items-center gap-2">

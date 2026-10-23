@@ -1,38 +1,20 @@
 rules_version = '2';
 
 // Regras do Guia da Feira e do painel MOKI.
-// Sem login: qualquer visitante lê e vota; grupos editam só o cardápio da própria banca.
-// ponytail: edição aberta a quem tem o link; login por grupo se alguém bagunçar os dados.
+// Visitante lê e vota. Grupos editam pelo servidor, com senha por banca.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /bancas/{id} {
-      allow read: if true;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['produtos', 'pagamento', 'instagram'])
-                    && request.resource.data.produtos is list
-                    && request.resource.data.produtos.size() <= 40;
-    }
+    // Cardápio, sabores e ficha só mudam pelo servidor do guia, depois do login com a senha da banca.
+    match /bancas/{id} { allow read: if true; }
+    match /mokiSabores/{id} { allow read: if true; }
+    match /mokiFicha/{id} { allow read: if true; }
 
     match /votos/{id} {
       allow read: if true;
       allow create: if request.resource.data.keys().hasOnly(['banca', 'nota', 'criadoEm'])
-                    && request.resource.data.nota is int
-                    && request.resource.data.nota >= 1 && request.resource.data.nota <= 5
-                    && exists(/databases/$(database)/documents/bancas/$(request.resource.data.banca));
-    }
-
-    match /mokiSabores/{id} {
-      allow read: if true;
-      allow create: if request.resource.data.nome is string
-                    && request.resource.data.preco is number
-                    && request.resource.data.produzidos is int
-                    && request.resource.data.vendidos == 0;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vendidos'])
-                    && request.resource.data.vendidos >= 0;
-    }
-
-    match /mokiFicha/{id} {
-      allow read, write: if true;
+        && request.resource.data.nota is int
+        && request.resource.data.nota >= 1 && request.resource.data.nota <= 5
+        && exists(/databases/$(database)/documents/bancas/$(request.resource.data.banca));
     }
 
     match /{document=**} {
