@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR Codes da Feira</title>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .cartaz { background: #fff; color: #111; border-radius: var(--raio); padding: 24px; text-align: center; margin-top: 16px; break-inside: avoid; }
+    .cartaz h2 { margin: 0 0 8px; color: #111; }
+    .cartaz img { width: min(320px, 100%); image-rendering: pixelated; }
+    @media print { body { background: #fff; } .nao-imprimir { display: none; } .cartaz { page-break-after: always; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="topo nao-imprimir">
+    <h1>QR Codes para imprimir</h1>
+    <p class="sub">Um cartaz grande para a entrada e um por mesa. Use Imprimir do navegador.</p>
+    <p><button class="botao" onclick="print()">Imprimir</button></p>
+  </header>
+  <div id="cartazes"></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+  const base = location.href.replace(/qr\.html.*$/, '');
+  const cartazes = [
+    ['Guia da Feira', 'Mapa, cardápio, preços e votação', base],
+    ['Vote nas bancas', 'Dê sua nota de 1 a 5', base + '#votar'],
+    ['Painel MOKI Cookies', 'Uso interno da banca', base + 'moki.html'],
+  ];
+  document.getElementById('cartazes').innerHTML = cartazes.map(([t, s, url]) => {
+    const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+    return `<section class="cartaz"><h2>${t}</h2><p>${s}</p>${qr.createImgTag(8, 8, t)}<p style="word-break:break-all">${url}</p></section>`;
+  }).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel MOKI Cookies</title>
+  <meta name="description" content="Estoque e vendas por sabor em tempo real e calculadora de insumos da MOKI Cookies.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="topo">
+    <h1>Painel MOKI Cookies</h1>
+    <p class="sub">Uso interno da banca. Cada venda marcada aqui atualiza o estoque de todos os celulares do grupo e o <a href="./#banca-moki">guia da feira</a>.</p>
+  </header>
+
+  <nav class="atalhos" aria-label="Partes do painel">
+    <a href="#banca">Banca ao vivo</a>
+    <a href="#calculadora">Calculadora de insumos</a>
+  </nav>
+
+  <section id="banca" aria-labelledby="titulo-banca">
+    <h2 id="titulo-banca">Banca ao vivo</h2>
+    <div class="caixa resumo" id="resumo"></div>
+    <div class="sabores" id="sabores" style="margin-top:12px"><p class="sub">Carregando sabores...</p></div>
+
+    <form class="caixa" id="form-sabor" style="margin-top:16px">
+      <h3>Novo sabor</h3>
+      <label for="s-nome">Sabor</label>
+      <input id="s-nome" required>
+      <label for="s-preco">Preço (R$)</label>
+      <input id="s-preco" inputmode="decimal" required>
+      <label for="s-prod">Cookies produzidos</label>
+      <input id="s-prod" inputmode="numeric" required>
+      <div style="margin-top:16px"><button class="botao" type="submit">Adicionar sabor</button></div>
+      <p class="aviso" id="aviso-sabor" role="status"></p>
+    </form>
+  </section>
+
+  <section id="calculadora" aria-labelledby="titulo-calc">
+    <h2 id="titulo-calc">Calculadora de insumos</h2>
+    <p class="sub">Uma receita base. Preencha o que foi comprado e quanto a receita usa. A calculadora mostra o custo de cada cookie, o preço mínimo e a lista de compras para a quantidade que o grupo quer assar.</p>
+
+    <div class="caixa">
+      <div class="rolavel">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Ingrediente</th>
+              <th scope="col">Preço pago (R$)</th>
+              <th scope="col">Qtd. no pacote</th>
+              <th scope="col">Unidade</th>
+              <th scope="col">Usa por receita</th>
+              <th scope="col"><span class="sub">Remover</span></th>
+            </tr>
+          </thead>
+          <tbody id="ingredientes"></tbody>
+        </table>
+      </div>
+      <button class="botao secundario" type="button" id="mais-ing" style="margin-top:12px">Adicionar ingrediente</button>
+
+      <label for="rendimento">Cookies por receita</label>
+      <input id="rendimento" inputmode="numeric">
+      <label for="embalagem">Embalagem por cookie (R$)</label>
+      <input id="embalagem" inputmode="decimal">
+      <label for="margem">Margem de lucro desejada (%)</label>
+      <input id="margem" inputmode="numeric">
+      <label for="meta">Quantos cookies vamos assar para a feira</label>
+      <input id="meta" inputmode="numeric">
+
+      <h3 style="margin-top:24px">Padrão de produção</h3>
+      <p class="sub">Para todos os cookies saírem do mesmo tamanho e textura.</p>
+      <label for="peso">Massa por cookie (g)</label>
+      <input id="peso" inputmode="numeric">
+      <label for="forno">Forno (temperatura e tempo)</label>
+      <input id="forno" placeholder="180 °C por 12 minutos">
+
+      <div style="margin-top:20px"><button class="botao" type="button" id="salvar-ficha">Salvar ficha</button></div>
+      <p class="aviso" id="aviso-ficha" role="status"></p>
+    </div>
+
+    <div class="caixa" style="margin-top:12px">
+      <h3>Resultado</h3>
+      <div class="resumo" id="resultado"></div>
+      <h3 style="margin-top:20px">Lista de compras</h3>
+      <div class="rolavel"><table class="tabela" id="compras"></table></div>
+    </div>
+  </section>
+
+  <footer>Feito pelo grupo de Engenharia de Software (UniRide) para a MOKI Cookies.</footer>
+</main>
+
+<script type="module">
+  import {
+    db, collection, doc, onSnapshot, addDoc, setDoc, updateDoc, increment, reais, esc,
+  } from './firebase.js';
+
+  const num = (v) => Number(String(v ?? '').replace(',', '.')) || 0;
+
+  // ---------- Banca ao vivo ----------
+  const caixaSabores = document.getElementById('sabores');
+  const resumo = document.getElementById('resumo');
+  let sabores = [];
+
+  function desenharSabores() {
+    let vendidos = 0, faturado = 0, restamTotal = 0;
+    caixaSabores.innerHTML = sabores.map((s) => {
+      const restam = Math.max(0, s.produzidos - s.vendidos);
+      vendidos += s.vendidos; faturado += s.vendidos * s.preco; restamTotal += restam;
+      return `
+        <article class="sabor">
+          <h3>${esc(s.nome)}</h3>
+          <span class="sub">${reais(s.preco)} · ${s.vendidos} vendidos de ${s.produzidos}</span>
+          <span class="restam ${restam === 0 ? 'zero' : ''}">${restam === 0 ? 'Esgotou' : `${restam} restam`}</span>
+          <div class="acoes">
+            <button class="botao" data-id="${esc(s.id)}" data-delta="1" ${restam === 0 ? 'disabled' : ''}>Vendi 1</button>
+            <button class="botao secundario" data-id="${esc(s.id)}" data-delta="-1" ${s.vendidos === 0 ? 'disabled' : ''} aria-label="Desfazer última venda de ${esc(s.nome)}">Desfazer</button>
+          </div>
+        </article>`;
+    }).join('') || '<p class="sub">Nenhum sabor cadastrado.</p>';
+    resumo.innerHTML = `
+      <div><strong>${vendidos}</strong>cookies vendidos</div>
+      <div><strong>${reais(faturado)}</strong>faturado</div>
+      <div><strong>${restamTotal}</strong>restam na banca</div>`;
+  }
+
+  caixaSabores.onclick = (e) => {
+    const b = e.target.closest('button[data-id]');
+    if (!b) return;
+    updateDoc(doc(db, 'mokiSabores', b.dataset.id), { vendidos: increment(Number(b.dataset.delta)) });
+  };
+
+  let ultimoCardapio = '';
+  onSnapshot(collection(db, 'mokiSabores'), (snap) => {
+    sabores = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.nome.localeCompare(b.nome));
+    desenharSabores();
+    // Mantém o cardápio da MOKI no guia da feira igual ao estoque real.
+    const produtos = sabores.map((s) => ({ nome: s.nome, preco: s.preco, esgotado: s.produzidos - s.vendidos <= 0 }));
+    const json = JSON.stringify(produtos);
+    if (json !== ultimoCardapio) {
+      ultimoCardapio = json;
+      updateDoc(doc(db, 'bancas', 'moki'), { produtos }).catch(() => {});
+    }
+  });
+
+  document.getElementById('form-sabor').onsubmit = async (e) => {
+    e.preventDefault();
+    const aviso = document.getElementById('aviso-sabor');
+    aviso.className = 'aviso';
+    const nome = document.getElementById('s-nome').value.trim();
+    const preco = num(document.getElementById('s-preco').value);
+    const produzidos = Math.round(num(document.getElementById('s-prod').value));
+    if (!nome || preco <= 0 || produzidos <= 0) {
+      aviso.textContent = 'Preencha sabor, preço e quantidade com números maiores que zero.';
+      aviso.classList.add('erro');
+      return;
+    }
+    await addDoc(collection(db, 'mokiSabores'), { nome, preco, produzidos, vendidos: 0 });
+    e.target.reset();
+    aviso.textContent = 'Sabor adicionado.';
+    aviso.classList.add('ok');
+  };
+
+  // ---------- Calculadora de insumos ----------
+  const corpoIng = document.getElementById('ingredientes');
+  const campos = ['rendimento', 'embalagem', 'margem', 'meta', 'peso', 'forno'];
+  const fichaRef = doc(db, 'mokiFicha', 'receita');
+
+  function linhaIng(i = { nome: '', preco: '', pacote: '', unidade: 'g', uso: '' }) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input aria-label="Ingrediente" class="i-nome" value="${esc(i.nome)}"></td>
+      <td><input aria-label="Preço pago" class="i-preco" inputmode="decimal" value="${esc(i.preco)}" style="max-width:100px"></td>
+      <td><input aria-label="Quantidade no pacote" class="i-pacote" inputmode="decimal" value="${esc(i.pacote)}" style="max-width:100px"></td>
+      <td><select aria-label="Unidade" class="i-unidade" style="max-width:90px">
+        ${['g', 'ml', 'un'].map((u) => `<option ${u === i.unidade ? 'selected' : ''}>${u}</option>`).join('')}
+      </select></td>
+      <td><input aria-label="Usa por receita" class="i-uso" inputmode="decimal" value="${esc(i.uso)}" style="max-width:100px"></td>
+      <td><button class="botao secundario" type="button" aria-label="Remover ingrediente">x</button></td>`;
+    tr.querySelector('button').onclick = () => { tr.remove(); calcular(); };
+    corpoIng.append(tr);
+  }
+
+  const lerIngredientes = () => [...corpoIng.querySelectorAll('tr')].map((tr) => ({
+    nome: tr.querySelector('.i-nome').value.trim(),
+    preco: tr.querySelector('.i-preco').value,
+    pacote: tr.querySelector('.i-pacote').value,
+    unidade: tr.querySelector('.i-unidade').value,
+    uso: tr.querySelector('.i-uso').value,
+  })).filter((i) => i.nome);
+
+  function calcular() {
+    const ings = lerIngredientes();
+    const rendimento = num(document.getElementById('rendimento').value);
+    const embalagem = num(document.getElementById('embalagem').value);
+    const margem = num(document.getElementById('margem').value);
+    const meta = num(document.getElementById('meta').value);
+
+    const custoReceita = ings.reduce((t, i) => t + (num(i.pacote) ? num(i.preco) / num(i.pacote) * num(i.uso) : 0), 0);
+    const custoCookie = rendimento ? custoReceita / rendimento + embalagem : 0;
+    const precoMinimo = custoCookie * (1 + margem / 100);
+    const receitas = rendimento ? Math.ceil(meta / rendimento) : 0;
+
+    document.getElementById('resultado').innerHTML = `
+      <div><strong>${reais(custoReceita)}</strong>custo de uma receita</div>
+      <div><strong>${reais(custoCookie)}</strong>custo por cookie</div>
+      <div><strong>${reais(precoMinimo)}</strong>preço para ${margem || 0}% de margem</div>
+      <div><strong>${receitas}</strong>receitas para ${meta || 0} cookies</div>`;
+
+    document.getElementById('compras').innerHTML = ings.length && receitas
+      ? `<thead><tr><th scope="col">Ingrediente</th><th scope="col">Total usado</th><th scope="col">Pacotes</th><th scope="col">Gasto</th></tr></thead><tbody>` +
+        ings.map((i) => {
+          const total = num(i.uso) * receitas;
+          const pacotes = num(i.pacote) ? Math.ceil(total / num(i.pacote)) : 0;
+          return `<tr><td>${esc(i.nome)}</td><td>${total.toLocaleString('pt-BR')} ${esc(i.unidade)}</td><td>${pacotes}</td><td>${reais(pacotes * num(i.preco))}</td></tr>`;
+        }).join('') + '</tbody>'
+      : '<tbody><tr><td class="sub">Preencha ingredientes, cookies por receita e a quantidade para a feira.</td></tr></tbody>';
+  }
+
+  document.getElementById('mais-ing').onclick = () => linhaIng();
+  document.getElementById('calculadora').addEventListener('input', calcular);
+
+  document.getElementById('salvar-ficha').onclick = async () => {
+    const aviso = document.getElementById('aviso-ficha');
+    aviso.className = 'aviso';
+    const dados = { ingredientes: lerIngredientes() };
+    for (const c of campos) dados[c] = document.getElementById(c).value.trim();
+    try {
+      await setDoc(fichaRef, dados);
+      aviso.textContent = 'Ficha salva.';
+      aviso.classList.add('ok');
+    } catch {
+      aviso.textContent = 'Não foi possível salvar.';
+      aviso.classList.add('erro');
+    }
+  };
+
+  // Carrega a ficha uma vez para não apagar o que alguém está digitando.
+  const parar = onSnapshot(fichaRef, (snap) => {
+    parar();
+    const f = snap.data() || {};
+    (f.ingredientes?.length ? f.ingredientes : [undefined]).forEach((i) => linhaIng(i));
+    for (const c of campos) document.getElementById(c).value = f[c] ?? '';
+    calcular();
+  });
+</script>
+</body>
+</html>
