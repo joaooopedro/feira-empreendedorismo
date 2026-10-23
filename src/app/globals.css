@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Sala da feira de dia: branco, tinta grafite, azul UniAcademia como destaque, cor própria em cada banca. */
+@theme {
+  --color-fundo: oklch(0.99 0 0);
+  --color-superficie: oklch(0.965 0.004 262);
+  --color-superficie-alta: oklch(0.93 0.006 262);
+  --color-linha: oklch(0.88 0.006 262);
+  --color-tinta: oklch(0.22 0.02 262);
+  --color-tinta-fraca: oklch(0.45 0.02 262);
+  --color-marca: oklch(0.64 0.15 237); /* azul do logo UniAcademia */
+  --color-destaque: oklch(0.48 0.13 240); /* mesmo azul, escuro o bastante para texto */
+  --color-erro: oklch(0.55 0.2 30);
+  --color-ok: oklch(0.52 0.14 150);
+  --font-display: var(--font-archivo);
+  --font-sans: var(--font-atkinson);
+  --radius-cartao: 10px;
+  --radius-campo: 8px;
+  --ease-saida: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  background: var(--color-fundo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { font-family: var(--font-display); font-stretch: 112%; line-height: 1.05; text-wrap: balance; }
+p { text-wrap: pretty; }
+
+:focus-visible { outline: 3px solid var(--color-destaque); outline-offset: 2px; }
+
+/* Preço de cardápio com pontilhado até o valor */
+.pontilhado { flex: 1; border-bottom: 2px dotted var(--color-linha); transform: translateY(-5px); min-width: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

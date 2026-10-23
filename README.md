@@ -1,17 +1,21 @@
 # Guia Digital da Feira de Empreendedorismo
 
-Trabalho de Empreendedorismo (Engenharia de Software, grupo UniRide) para a Feira de Empreendedorismo de 03/11.
+Trabalho de Empreendedorismo (Engenharia de Software, UniAcademia, grupo UniRide) para a Feira de Empreendedorismo de 03/11.
 
-- `index.html`: guia do visitante com mapa do pátio, cardápio e preço de cada banca, votação e ranking (demanda 1B).
-- `cadastro.html`: cada grupo de Gestão atualiza o cardápio da própria banca.
-- `moki.html`: painel da MOKI Cookies com estoque e vendas por sabor em tempo real e calculadora de insumos (demanda 1A).
-- `qr.html`: QR Codes para imprimir.
+- `/`: guia do visitante com a sala em 3D (three.js), cardápio e preço de cada banca, votação e ranking ao vivo (demanda 1B).
+- `/cadastro`: cada grupo de Gestão atualiza o cardápio da própria banca.
+- `/moki`: painel da MOKI Cookies com estoque e vendas por sabor em tempo real e calculadora de insumos (demanda 1A).
+- `/qr`: cartazes com QR Code para imprimir.
 
-Dados no Cloud Firestore (projeto `feira-emp-80153`). Regras em `firestore.rules`.
+Stack: Next.js 15 (App Router, renderização no servidor), React 19, TypeScript, Tailwind 4, three.js com react-three-fiber, Motion e Cloud Firestore (projeto `feira-emp-80153`, regras em `firestore.rules`).
 
-## Rodar local
+## Rodar
 
-Qualquer servidor estático na pasta, por exemplo `python3 -m http.server 8000`.
+```bash
+npm install
+npm run dev
+npm test
+```
 
 ## Integrantes
 
