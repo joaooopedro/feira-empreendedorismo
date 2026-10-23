@@ -36,7 +36,7 @@ export default function Cadastro({ inicial, banca }: { inicial: Banca[]; banca: 
   // Abre já com o cardápio da banca logada.
   useEffect(() => {
     if (!id && minha) escolher(minha.id);
-  }, [minha]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [minha]); // eslint-disable-line react-hooks/exhaustive-deps -- escolher só roda na primeira carga
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
