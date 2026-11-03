@@ -23,5 +23,6 @@ export type Ficha = {
   margem: string;
   meta: string;
   peso: string;
-  forno: string;
+  temperatura: string;
+  tempo: string;
 };

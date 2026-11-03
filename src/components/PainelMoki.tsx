@@ -15,7 +15,7 @@ const saida = [0.22, 1, 0.36, 1] as const;
 const campo = "min-h-12 w-full rounded-campo border border-linha bg-fundo px-3";
 const campoTabela = "min-h-10 w-full rounded-cartao border border-linha bg-fundo px-2";
 
-const fichaVazia: Ficha = { ingredientes: [], rendimento: "", embalagem: "", margem: "", meta: "", peso: "", forno: "" };
+const fichaVazia: Ficha = { ingredientes: [], rendimento: "", embalagem: "", margem: "", meta: "", peso: "", temperatura: "", tempo: "" };
 const ingredienteVazio: Ingrediente = { nome: "", preco: "", pacote: "", unidade: "g", uso: "" };
 
 function Numero({ valor, rotulo }: { valor: string; rotulo: string }) {
@@ -241,7 +241,8 @@ function Calculadora() {
           <p className="text-tinta-fraca">Para todo cookie sair do mesmo tamanho e textura.</p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             {entrada("peso", "Massa por cookie (g)", { inputMode: "numeric" })}
-            {entrada("forno", "Forno", { placeholder: "180 °C por 12 minutos" })}
+            {entrada("temperatura", "Temperatura do forno (°C)", { inputMode: "numeric", placeholder: "180" })}
+            {entrada("tempo", "Tempo de forno (minutos)", { inputMode: "numeric", placeholder: "12" })}
           </div>
 
           <button onClick={salvar} className="mt-6 min-h-12 rounded-campo bg-tinta px-6 font-bold text-fundo">Salvar ficha</button>
@@ -250,10 +251,11 @@ function Calculadora() {
 
         <div className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
           <div className="grid grid-cols-2 gap-5 rounded-cartao bg-superficie p-5">
+            <Numero valor={reais(plano.receita)} rotulo="custo da receita" />
             <Numero valor={reais(plano.porCookie)} rotulo="custo por cookie" />
             <Numero valor={reais(plano.precoMinimo)} rotulo={`preço para ${numero(ficha.margem)}% de margem`} />
             <Numero valor={String(plano.receitas)} rotulo={`receitas para ${numero(ficha.meta)} cookies`} />
-            <Numero valor={reais(plano.gastoTotal)} rotulo="gasto em compras" />
+            <div className="col-span-2"><Numero valor={reais(plano.gastoTotal)} rotulo="gasto em compras" /></div>
           </div>
           <div className="rounded-cartao bg-superficie p-5">
             <h3 className="text-xl font-bold">Lista de compras</h3>
